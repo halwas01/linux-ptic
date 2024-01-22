@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2022 Prodrive Technologies
+
+/*
+ * This file lists the CPU specific definitions for building blocks based on the i.MX8M Mini CPU.
+ */
+#include "../../../freescale/imx8mm.dtsi"
+
+&iomuxc {
+	pinctrl-names = "default";
+
+	/*
+	 * Building block interfaces
+	 */
+	imx8m_pinctrl_ecspi1: ecspi1grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO	0x00
+			MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI	0x00
+			MX8MM_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK	0x00
+			MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9			0x00
+		>;
+	};
+
+	/*
+	 * Bit-30 corresponds with the I2C1 SION-bit in the Pad Mux Register (bit-4).
+	 * This bit must be set to force the input path of I2C pads.
+	 */
+	imx8m_pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_I2C1_SCL_I2C1_SCL	0x40000000
+			MX8MM_IOMUXC_I2C1_SDA_I2C1_SDA	0x40000000
+		>;
+	};
+
+	/* i.MX I2C peripheral is unable to perform bus recovery. For recovery the driver can switch the I2C pins to GPIO mode
+		for bus recovery. These are added as additional IOMUX settings. */
+	imx8m_pinctrl_i2c1_gpio: i2c1gpiogrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_I2C1_SCL_GPIO5_IO14	0x00
+			MX8MM_IOMUXC_I2C1_SDA_GPIO5_IO15	0x00
+		>;
+	};
+
+	imx8m_pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_UART4_RXD_UART4_DCE_RX	0x00
+			MX8MM_IOMUXC_UART4_TXD_UART4_DCE_TX	0x00
+		>;
+	};
+
+	imx8m_pinctrl_usdhc1: usdhc1grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SD1_CLK_USDHC1_CLK						0x12
+			MX8MM_IOMUXC_SD1_CMD_USDHC1_CMD						0x10
+			MX8MM_IOMUXC_SD1_DATA0_USDHC1_DATA0				0x10
+			MX8MM_IOMUXC_SD1_DATA1_USDHC1_DATA1				0x10
+			MX8MM_IOMUXC_SD1_DATA2_USDHC1_DATA2				0x10
+			MX8MM_IOMUXC_SD1_DATA3_USDHC1_DATA3				0x1810
+			MX8MM_IOMUXC_SD1_DATA4_USDHC1_DATA4				0x10
+			MX8MM_IOMUXC_SD1_DATA5_USDHC1_DATA5				0x10
+			MX8MM_IOMUXC_SD1_DATA6_USDHC1_DATA6				0x10
+			MX8MM_IOMUXC_SD1_DATA7_USDHC1_DATA7				0x10
+			MX8MM_IOMUXC_SD1_RESET_B_USDHC1_RESET_B		0x10
+			MX8MM_IOMUXC_SD1_STROBE_USDHC1_STROBE			0x10
+		>;
+	};
+
+	imx8m_pinctrl_pmic: pmicirq {
+		fsl,pins = <
+			//TODO: PMIC_WDOG?
+			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3	0x00
+		>;
+	};
+};

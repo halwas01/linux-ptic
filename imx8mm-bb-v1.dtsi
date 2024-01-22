@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2022 Prodrive Technologies
+
+/*
+ * This device tree describes the imx8mm building block.
+ * CPU clock speeds, speed grades and flash sizes are not differentiated, as they are automatically detected.
+ * DRAM sizes are not differentiates, as the memory size is overwritten by U-Boot.
+ * This file can be included by products using the building block to have all building block definitions in one place.
+ */
+
+// Select the Mini CPU
+#include "imx8m-mini-cpu-v1.dtsi"
+// Get the building block definitions
+#include "imx8m-v1.dtsi"

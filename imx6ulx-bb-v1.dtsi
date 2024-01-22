@@ -1,0 +1,342 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright (C) 2021 Prodrive Technologies
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include "../imx6ull.dtsi"
+
+/ {
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	/*
+	 * When U-Boot environment variable 'ethaddr' is set, the MAC address from the i.MX eFuses gets overwritten.
+	 * 'ethaddr' is a magic environment variable in U-Boot and related to the ethernet alias described in the device tree.
+	 * By deleting the ethernet alias property, the MAC address cannot be spoofed by setting the 'ethaddr' variable.
+	 * Allow setting MAC address values by U-Boot by adding the ethernet alias to the product device tree.
+	 */
+	aliases {
+		/delete-property/ ethernet0;
+		/delete-property/ ethernet1;
+	};
+
+	/* 256 MiB of DDR3 */
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>;
+	};
+
+	/* TODO: Define DRAM */
+	/*
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x10000>;
+			linux,cma-default;
+		};
+	};
+	*/
+};
+
+&cpu0 {
+	/*
+	 * on i.MX6ULL, no seperated VDD_ARM_IN and VDD_SOC_IN,
+	 * to align with other platform and use the same cpufreq
+	 * driver, still use the seperated OPP define for arm
+	 * and soc.
+	 */
+	operating-points = <
+		/* kHz	uV */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+	fsl,soc-operating-points = <
+		/* KHz	uV */
+		528000	1175000
+		396000	1175000
+		198000	1175000
+	>;
+	fsl,arm-soc-shared = <1>;
+};
+
+
+// TODO: Check if can be removed
+&clks {
+	assigned-clocks = <&clks IMX6UL_CLK_PLL3_PFD2>;
+	assigned-clock-rates = <320000000>;
+};
+
+/*
+	The following definitions list the parts and interfaces which are placed on the building block itself.
+	These parts and interfaces are enabled by default, as they are always available and used.
+*/
+
+/* PMIC */
+imx6ulx_bb_i2c1: &i2c1 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	sda-gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio4 18 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	imx6ulx_bb_pmic: tps65218@24 {
+		reg = <0x24>;
+		compatible = "ti,tps65218";
+		pinctrl-0 = <&pinctrl_pmic>; //Set to TAMPER5
+		gpio_intr = <&gpio5 5 GPIO_ACTIVE_LOW>;
+
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dcdc1_reg: regulator@0 {
+				reg = <0>;
+				regulator-compatible = "dcdc1";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1675000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			dcdc2_reg: regulator@1 {
+				reg = <1>;
+				regulator-compatible = "dcdc2";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1675000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			dcdc3_reg: regulator@2 {
+				reg = <2>;
+				regulator-compatible = "dcdc3";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			dcdc4_reg: regulator@3 {
+				reg = <3>;
+				regulator-compatible = "dcdc4";
+				regulator-min-microvolt = <1175000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			dcdc5_reg: regulator@4 {
+				reg = <4>;
+				regulator-compatible = "dcdc5";
+				regulator-min-microvolt = <975000>;
+				regulator-max-microvolt = <1025000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			dcdc6_reg: regulator@5 {
+				reg = <5>;
+				regulator-compatible = "dcdc6";
+				regulator-min-microvolt = <2917000>;
+				regulator-max-microvolt = <3085000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo1_reg: regulator@6 {
+				reg = <6>;
+				regulator-compatible = "ldo1";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <5500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ls1_reg: regulator@7 {
+				reg = <7>;
+				regulator-compatible = "ls1";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3600000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ls2_reg: regulator@8 {
+				reg = <8>;
+				regulator-compatible = "ls2";
+				regulator-min-microvolt = <4000000>;
+				regulator-max-microvolt = <5500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ls3_reg: regulator@9 {
+				reg = <9>;
+				regulator-compatible = "ls3";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <10000000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+/* Recovery flash */
+imx6ulx_bb_ecspi1: &ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	status = "okay";
+	cs-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+
+	/* Disable DMA to force PIO mode, since DMA is not available during boot */
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
+
+	imx6ulx_bb_spi_flash: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		status = "okay";
+		partition@0x00000000 {
+			label = "recovery_boot";
+			reg = <0x00000000 0x00100000>;
+		};
+		partition@0x00100000 {
+			label = "boot_env";
+			reg = <0x00100000 0x00020000>;
+		};
+		partition@0x00120000 {
+			label = "factory_data";
+			reg = <0x00120000 0x00020000>;
+			read-only;
+		};
+		partition@0x00140000 {
+			label = "customer_data";
+			reg = <0x00140000 0x00040000>;
+		};
+		partition@0x00180000 {
+			label = "recovery_firmware";
+			reg = <0x00180000 0x00680000>;
+		};
+	};
+};
+
+/* Boot flash */
+imx6ulx_bb_nand_flash: &gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpmi1>;
+	status = "okay";
+	nand-on-flash-bbt;
+
+	partition@0x00000000 {
+		label = "boot";
+		reg = <0x00000000 0x00500000>;
+	};
+	partition@0x00500000 {
+		label = "firmware";
+		reg = <0x00500000 0x03C00000>;
+	};
+	partition@0x04100000 {
+		label = "user_definable";
+		reg = <0x04100000 0x03F00000>;
+	};
+};
+
+&snvs_poweroff {
+	status = "okay";
+};
+
+/* Debug UART */
+imx6ulx_bb_uart_debug: &uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+/* USB mode is predefined as host, as most products will use it as host. Can be overridden in product definitions */
+imx6ulx_bb_usbotg1: &usbotg1 {
+	pinctrl-names = "default";
+	dr_mode = "host";
+	status = "okay";
+};
+
+imx6ulx_bb_iomuxc: &iomuxc {
+	pinctrl-names = "default";
+
+	pinctrl_ecspi1: ecspi1grp-1 {
+		fsl,pins = <
+			MX6UL_PAD_CSI_DATA04__ECSPI1_SCLK	0x10b0
+			MX6UL_PAD_CSI_DATA05__GPIO4_IO26	0x10b0 /* CS# */
+			MX6UL_PAD_CSI_DATA06__ECSPI1_MOSI	0x10b0
+			MX6UL_PAD_CSI_DATA07__ECSPI1_MISO	0x10b0
+		>;
+	};
+
+	/*
+	 * Bit-30 corresponds with the I2C1 SION-bit in the Pad Mux Register (bit-4).
+	 * This bit must be set to force the input path of I2C pads.
+	 */
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			MX6UL_PAD_CSI_MCLK__I2C1_SDA		0x400010b0
+			MX6UL_PAD_CSI_PIXCLK__I2C1_SCL	0x400010b0
+		>;
+	};
+
+	pinctrl_i2c1_gpio: i2c1gpiogrp {
+		fsl,pins = <
+			MX6UL_PAD_CSI_MCLK__GPIO4_IO17		0x10b0
+			MX6UL_PAD_CSI_PIXCLK__GPIO4_IO18	0x10b0
+		>;
+	};
+
+	pinctrl_pmic: pmicirq {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER0__GPIO5_IO00		0x10b0
+			MX6ULL_PAD_SNVS_TAMPER1__GPIO5_IO01		0x10b0
+			MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05		0x10b0
+			MX6ULL_PAD_SNVS_TAMPER6__GPIO5_IO06		0x10b0
+		>;
+	};
+
+	pinctrl_gpmi1: gpmi1 {
+		fsl,pins = <
+			MX6UL_PAD_NAND_CE0_B__RAWNAND_CE0_B			0x10b0
+			MX6UL_PAD_NAND_ALE__RAWNAND_ALE					0x10b0
+			MX6UL_PAD_NAND_CLE__RAWNAND_CLE					0x10b0
+			MX6UL_PAD_NAND_RE_B__RAWNAND_RE_B				0x10b0
+			MX6UL_PAD_NAND_WE_B__RAWNAND_WE_B				0x10b0
+			MX6UL_PAD_NAND_WP_B__RAWNAND_WP_B				0x10b0
+			MX6UL_PAD_NAND_READY_B__RAWNAND_READY_B	0x10b0
+			MX6UL_PAD_NAND_DATA00__RAWNAND_DATA00		0x10b0
+			MX6UL_PAD_NAND_DATA01__RAWNAND_DATA01		0x10b0
+			MX6UL_PAD_NAND_DATA02__RAWNAND_DATA02		0x10b0
+			MX6UL_PAD_NAND_DATA03__RAWNAND_DATA03		0x10b0
+			MX6UL_PAD_NAND_DATA04__RAWNAND_DATA04		0x10b0
+			MX6UL_PAD_NAND_DATA05__RAWNAND_DATA05		0x10b0
+			MX6UL_PAD_NAND_DATA06__RAWNAND_DATA06		0x10b0
+			MX6UL_PAD_NAND_DATA07__RAWNAND_DATA07		0x10b0
+		>;
+	};
+
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX6UL_PAD_UART1_TX_DATA__UART1_DCE_TX	0x10b0
+			MX6UL_PAD_UART1_RX_DATA__UART1_DCE_RX	0x10b0
+		>;
+	};
+};

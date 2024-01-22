@@ -1,0 +1,781 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2023 Prodrive Technologies
+
+/*
+ * This device tree describes the SBCP A-Series module.
+ * It is based on the PTIC i.MX8MPlus building block.
+ * TODO: Drop A-Sample DTS when B-Sample is ready.
+ */
+
+/*
+ * TODO: Integrate the following interfaces
+ * - 12V Holdup (LTC3350)
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+// Get the building block
+#include "../ptic/imx8mplus-v1/imx8mp-bb-v1.dtsi"
+
+/ {
+	model = "Single Board Computer Plus A-Sample Controller.";
+	compatible = "pdt,imx8mp-sbcp" , "fsl,imx8mp";
+
+	aliases {
+		rtc0 = &rtc;
+		rtc1 = &snvs_rtc;
+		ethernet1 = &eqos;
+	};
+
+  chosen {
+		stdout-path = &uart4;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 5000000>;
+		brightness-levels = <0 32 64 96 128 160 192 224 255>;
+		default-brightness-level = <8>;
+		status = "okay";
+	};
+
+	reg_lcd_3p3v: lcd3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD3p3v";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 4 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <60000>;
+	};
+
+	/* WIFI power */
+	usdhc2_pwrseq: usdhc2_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usdhc2_en>;
+		reset-gpios = <&gpio2 19 GPIO_ACTIVE_LOW>;
+	};
+
+	panel {
+		compatible = "kyo,tcg070wvlq", "lg,lb070wv8";
+		backlight = <&backlight>;
+		power-supply = <&reg_lcd_3p3v>;
+		/* Display needs to be rotated to align with screen */
+		rotation = <270>;
+		status = "okay";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lvds_out>;
+			};
+		};
+	};
+
+	led-controller {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_leds>;
+
+		led-0 {
+			label = "hmi_led0_white";
+			color = <LED_COLOR_ID_WHITE>;
+			gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-1 {
+			label = "hmi_led0_red";
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-2 {
+			label = "hmi_led0_green";
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio4 15 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-3 {
+			label = "hmi_led1_red";
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-4 {
+			label = "hmi_led1_green";
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-5 {
+			label = "hmi_led2_red";
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio4 18 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-6 {
+			label = "hmi_led2_green";
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio4 19 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-7 {
+			label = "hmi_led3_red";
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		led-8 {
+			label = "hmi_led3_green";
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		backlight_en {
+			label = "backlight_en";
+			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	/*
+	 * The i.MX8M Plus FEC MDIO is not able to control managed Ethernet switches, as it is designed to do PHY's only.
+	 * It doesn't understand a fixed link _with_ MDIO control configuration. Therefore we define a MDIO bitbang
+	 * interface using the MDIO pins in GPIO mode. This is much slower and the jitter is dramatic. However, MDIO is a
+	 * synchronous interface, and it is only used during link training and VLAN setup. Therefore it has minor effect on
+	 * performance.
+	 */
+
+	manswitch_1gbe_4p_bb_mdio: mdio {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_bb_mdio>;
+		compatible = "virtual,mdio-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpios = <&gpio1 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>,
+			<&gpio1 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	};
+};
+
+/* LVDS Display Bridge */
+&ldb {
+	status = "okay";
+
+	lvds-channel@0 {
+		fsl,data-mapping = "jeida";
+		fsl,data-width = <24>;
+		rotation = <270>;
+		status = "okay";
+
+		port@1 {
+			reg = <1>;
+
+			lvds_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&ldb_phy {
+	status = "okay";
+};
+
+/* Display PWM */
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+/* Expansion Board SPI */
+&ecspi2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	fsl,spi-num-chipselects = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	spidev1: spidev@1 {
+		reg = <1>;
+		compatible = "rohm,dh2228fv";
+		pinctrl-0 = <&pinctrl_spidev>;
+		spi-max-frequency = <500000>;
+	};
+};
+
+&fec {
+	/* Prevent eFuse MAC address property is used in FEC */
+	/delete-property/ nvmem-cells;
+	/delete-property/ nvmem-cells-names;
+	/delete-property/ nvmem_macaddr_swap;
+};
+
+/* EQOS is used as the uplink to the Ethernet switch building block. It's set up as a fixed FD gigabit link */
+&eqos {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet>;
+	phy-mode = "rgmii";
+	status = "okay";
+	snps,force_thresh_dma_mode;
+	snps,mtl-tx-config = <&mtl_tx_setup>;
+	snps,mtl-rx-config = <&mtl_rx_setup>;
+	/* Remove eFuse MAC address property */
+	/delete-property/ nvmem-cells;
+	/delete-property/ nvmem-cells-names;
+	/delete-property/ nvmem_macaddr_swap;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+
+	mtl_tx_setup: tx-queues-config {
+		snps,tx-queues-to-use = <5>;
+		snps,tx-sched-sp;
+		queue0 {
+			snps,dcb-algorithm;
+			snps,priority = <0x1>;
+		};
+		queue1 {
+			snps,dcb-algorithm;
+			snps,priority = <0x2>;
+		};
+		queue2 {
+			snps,dcb-algorithm;
+			snps,priority = <0x4>;
+		};
+		queue3 {
+			snps,dcb-algorithm;
+			snps,priority = <0x8>;
+		};
+		queue4 {
+			snps,dcb-algorithm;
+			snps,priority = <0xf0>;
+		};
+	};
+	mtl_rx_setup: rx-queues-config {
+		snps,rx-queues-to-use = <5>;
+		snps,rx-sched-sp;
+		queue0 {
+			snps,dcb-algorithm;
+			snps,priority = <0x1>;
+			snps,map-to-dma-channel = <0>;
+		};
+		queue1 {
+			snps,dcb-algorithm;
+			snps,priority = <0x2>;
+			snps,map-to-dma-channel = <1>;
+		};
+		queue2 {
+			snps,dcb-algorithm;
+			snps,priority = <0x4>;
+			snps,map-to-dma-channel = <2>;
+		};
+		queue3 {
+			snps,dcb-algorithm;
+			snps,priority = <0x8>;
+			snps,map-to-dma-channel = <3>;
+		};
+		queue4 {
+			snps,dcb-algorithm;
+			snps,priority = <0xf0>;
+			snps,map-to-dma-channel = <4>;
+		};
+	};
+};
+
+/*
+ * Include the Ethernet switch block after the definition of the MDIO interface, as the building block needs it to
+ * create the switch on.
+ */
+#include "../ptic/manswitch-1gbe-4p-v1/manswitch-1gbe-4p-bb-v1.dtsi"
+
+&manswitch_1gbe_4p_bb_switch {
+	reset-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
+};
+
+/* Set up the managed switch external interfaces. */
+&manswitch_1gbe_4p_bb_uplink {
+	ethernet = <&eqos>;
+};
+
+&manswitch_1gbe_4p_bb_p1 {
+	label = "eth1";
+	nvmem-cells = <&eth_mac1>;
+	nvmem-cell-names = "mac-address";
+	nvmem_macaddr_swap;
+	status = "okay";
+};
+
+&manswitch_1gbe_4p_bb_p2 {
+	label = "eth2";
+	nvmem-cells = <&eth_mac2>;
+	nvmem-cell-names = "mac-address";
+	nvmem_macaddr_swap;
+	status = "okay";
+};
+
+/* RTC & DIO */
+&i2c2 {
+	clock-frequency = <350000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+	scl-gpios = <&gpio5 16 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
+
+	rtc: rtc@68 {
+		compatible = "nxp,pcf8523";
+		reg = <0x68>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rtc8523>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <8 GPIO_ACTIVE_LOW>;
+	};
+
+	/* TCA9535 SW is the same as PCA9535. */
+	/* DIO Input Expander */
+	gpio@20 {
+		compatible = "nxp,pca9535";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tca9535>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	/* TCA9535 SW is the same as PCA9535. */
+	/* DIO Output Expander */
+	gpio@21 {
+		compatible = "nxp,pca9535";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+/* Touchscreen, USB3.0, USB2.0 */
+&i2c3 {
+	clock-frequency = <350000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	status = "okay";
+
+	/* Disabled since not assembled on Prototype A Board */
+	/* EEPROM USB2.0
+	usbhub20: usbhub20@55 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbhub20>;
+		reg = <0x55>;
+		reset-gpios = <&gpio4 9 GPIO_ACTIVE_LOW>;
+	};*/
+
+	/* Disabled since not assembled on Prototype A Board */
+	/* EEPROM USB3.0
+	usbhub30: usbhub30@55 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbhub30>;
+		reg = <0x55>;
+		reset-gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
+	};*/
+
+	touchscreen@4a {
+		pinctrl-names = "default";
+		compatible = "atmel,maxtouch";
+		reg = <0x4a>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		atmel,reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&pinctrl_touchscreen>;
+		/delete-property/ dmas;
+		/delete-property/ dma-names;
+	};
+};
+
+/* M.2 E-/M-key I2C/SMBUS */
+&i2c4 {
+	clock-frequency = <350000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	status = "okay";
+};
+
+/* 12v Holdup */
+&i2c5 {
+	clock-frequency = <350000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c5>;
+	status = "okay";
+};
+
+/* PCIe SMB */
+&i2c6 {
+	clock-frequency = <350000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c6>;
+	status = "okay";
+};
+
+&pcie{
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio4 3 GPIO_ACTIVE_HIGH>;
+	ext_osc = <0>;
+	clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
+		 <&clk IMX8MP_CLK_PCIE_AUX>,
+		 <&clk IMX8MP_CLK_HSIO_AXI>,
+		 <&clk IMX8MP_CLK_PCIE_ROOT>;
+	clock-names = "pcie", "pcie_aux", "pcie_phy", "pcie_bus";
+	assigned-clocks = <&clk IMX8MP_CLK_HSIO_AXI>,
+			  <&clk IMX8MP_CLK_PCIE_AUX>;
+	assigned-clock-rates = <500000000>, <10000000>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_500M>,
+				 <&clk IMX8MP_SYS_PLL2_50M>;
+	status = "okay";
+};
+
+&pcie_phy {
+	ext_osc = <0>;
+	status = "okay";
+};
+
+/* UART M.2 */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	// TODO: Verify this works
+	host-wakeup-gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+/* USB2.0 */
+&usb3_1 {
+	status = "okay";
+};
+
+&usb3_phy1 {
+	status = "okay";
+};
+
+&usb_dwc3_1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+/* USDCH M.2 */
+&usdhc2 {
+  pinctrl-names = "default", "state_100mhz";
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	pinctrl-1 = <&pinctrl_usdhc2>;
+	bus-width = <4>;
+	keep-power-in-suspend;
+	non-removable;
+	wakeup-source;
+	mmc-pwrseq = <&usdhc2_pwrseq>;
+	fsl,sdio-async-interrupt-enabled;
+	status = "okay";
+
+	wifi_wake_host {
+		compatible = "nxp,wifi-wake-host";
+		interrupt-parent = <&gpio3>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "host-wake";
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio>;
+	pinctrl-0 = <&pinctrl_hog>;
+
+	pinctrl_hog: hoggrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO15__CCM_CLKO2  0x59 /* M2_SUSCLK */
+			MX8MP_IOMUXC_GPIO1_IO00__ANAMIX_REF_CLK_32K  0x141 /* M2_M_PCIE_PEWAKE0_n */
+		>;
+	};
+
+	pinctrl_bb_mdio: bbmdiogrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_ENET_MDC__GPIO1_IO16  0x00000000 /* ENET_MDC_1V8 */
+			MX8MP_IOMUXC_ENET_MDIO__GPIO1_IO17 0x00000000 /* ENET_MDIO_1V8 */
+		>;
+	};
+
+	pinctrl_ecspi2: ecspi2grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_ECSPI2_SCLK__ECSPI2_SCLK  0x00
+			MX8MP_IOMUXC_ECSPI2_MOSI__ECSPI2_MOSI  0x00
+			MX8MP_IOMUXC_ECSPI2_MISO__ECSPI2_MISO  0x00
+			MX8MP_IOMUXC_ECSPI2_SS0__GPIO5_IO13    0x00 /* ECSPI2_SS0 */
+		>;
+	};
+
+	pinctrl_spidev: spidevgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI2_MCLK__GPIO4_IO27  0x00  /* SPI2_EXP_CTRL2 */
+			MX8MP_IOMUXC_SAI2_TXC__GPIO4_IO25   0x00  /* SPI2_EXP_RST */
+		>;
+	};
+
+	pinctrl_enet: enetgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_ENET_RD0__ENET_QOS_RGMII_RD0                  0x91
+			MX8MP_IOMUXC_ENET_RD1__ENET_QOS_RGMII_RD1                  0x91
+			MX8MP_IOMUXC_ENET_RD2__ENET_QOS_RGMII_RD2                  0x91
+			MX8MP_IOMUXC_ENET_RD3__ENET_QOS_RGMII_RD3                  0x91
+			MX8MP_IOMUXC_ENET_RXC__CCM_ENET_QOS_CLOCK_GENERATE_RX_CLK  0x91
+			MX8MP_IOMUXC_ENET_RX_CTL__ENET_QOS_RGMII_RX_CTL            0x91
+			MX8MP_IOMUXC_ENET_TD0__ENET_QOS_RGMII_TD0                  0x1f
+			MX8MP_IOMUXC_ENET_TD1__ENET_QOS_RGMII_TD1                  0x1f
+			MX8MP_IOMUXC_ENET_TD2__ENET_QOS_RGMII_TD2                  0x1f
+			MX8MP_IOMUXC_ENET_TD3__ENET_QOS_RGMII_TD3                  0x1f
+			MX8MP_IOMUXC_ENET_TX_CTL__ENET_QOS_RGMII_TX_CTL            0x1f
+			MX8MP_IOMUXC_ENET_TXC__CCM_ENET_QOS_CLOCK_GENERATE_TX_CLK  0x1f
+			MX8MP_IOMUXC_SAI3_RXD__GPIO4_IO30                          0x00 /* Switch reset (ETHSW_GRST_n) */
+		>;
+	};
+
+	pinctrl_i2c2: i2c2grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C2_SCL__I2C2_SCL  0x40000000
+			MX8MP_IOMUXC_I2C2_SDA__I2C2_SDA  0x40000000
+		>;
+	};
+
+	pinctrl_i2c3: i2c3grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C3_SCL__I2C3_SCL  0x40000000
+			MX8MP_IOMUXC_I2C3_SDA__I2C3_SDA  0x40000000
+		>;
+	};
+
+	pinctrl_i2c4: i2c4grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD1_DATA2__I2C4_SCL  0x40000000
+			MX8MP_IOMUXC_SD1_DATA3__I2C4_SDA  0x40000000
+		>;
+	};
+
+	pinctrl_i2c5: i2c5grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI5_RXD0__I2C5_SCL  0x40000000  /* I2C5_12VH_SCL */
+			MX8MP_IOMUXC_SAI5_MCLK__I2C5_SDA  0x40000000  /* I2C5_12VH_SDA */
+		>;
+	};
+
+	pinctrl_i2c6: i2c6grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI5_RXC__I2C6_SDA      0X40000000 /* I2C6_PCIE_SW_SDA */
+			MX8MP_IOMUXC_SAI5_RXFS__I2C6_SCL     0X40000000 /* I2C6_PCIE_SW_SCL */
+		>;
+	};
+
+	pinctrl_gpio_leds: gpioledgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI1_TXD1__GPIO4_IO13      0x19 /* HMI_LED0_WHITE */
+			MX8MP_IOMUXC_SAI1_TXD2__GPIO4_IO14      0x19 /* HMI_LED0_RE */
+			MX8MP_IOMUXC_SAI1_TXD3__GPIO4_IO15      0x19 /* HMI_LED0_GR */
+			MX8MP_IOMUXC_SAI1_TXD4__GPIO4_IO16      0x19 /* HMI_LED1_RE */
+			MX8MP_IOMUXC_SAI1_TXD5__GPIO4_IO17      0x19 /* HMI_LED1_GR */
+			MX8MP_IOMUXC_SAI1_TXD6__GPIO4_IO18      0x19 /* HMI_LED2_RE */
+			MX8MP_IOMUXC_SAI1_TXD7__GPIO4_IO19      0x19 /* HMI_LED2_GR */
+			MX8MP_IOMUXC_SAI1_TXFS__GPIO4_IO10      0x19 /* HMI_LED3_RE */
+			MX8MP_IOMUXC_SPDIF_EXT_CLK__GPIO5_IO05  0x19 /* HMI_LED3_GR */
+			MX8MP_IOMUXC_SPDIF_TX__GPIO5_IO03       0x19 /* DISP_3V3_EN */
+			MX8MP_IOMUXC_SPDIF_RX__GPIO5_IO04       0x19 /* DISP_BLEN */
+		>;
+	};
+
+	pinctrl_pcie: pciegrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO14__GPIO1_IO14  0x16 /* PCIE_CLKREQ_n */
+			MX8MP_IOMUXC_SAI1_RXD1__GPIO4_IO03   0x16 /* PCIE_SW_RST_n */
+			MX8MP_IOMUXC_SAI5_RXD3__GPIO3_IO24   0x16 /* PCIE_SW_1V_PG */
+		>;
+	};
+
+	pinctrl_pwm1: pwm1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C4_SDA__PWM1_OUT  0x00 /* DISP_BLBRT_PWM */
+		>;
+	};
+
+	pinctrl_rtc8523: rtc8523grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO08__GPIO1_IO08  0x00 /* RTC_INT_n */
+		>;
+	};
+
+	pinctrl_tca9535: tca9535grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10  0x00 /* I2C2_DI_INT_n */
+		>;
+	};
+
+	pinctrl_usbhub20: usbhub20grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI1_RXD7__GPIO4_IO09  0x00 /* USB20_GRST_n */
+		>;
+	};
+
+	pinctrl_usbhub30: usbhub30grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI1_RXFS__GPIO4_IO00  0x00 /* USB30_GRST_n */
+		>;
+	};
+
+	pinctrl_touchscreen: touchscreengrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI3_TXD__GPIO5_IO01   0x00 /* TS_CHG_INT_n */
+			MX8MP_IOMUXC_GPIO1_IO11__GPIO1_IO11 0x00 /* TS_RST_n */
+		>;
+	};
+
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD1_CLK__UART1_DTE_RX     0x00
+			MX8MP_IOMUXC_SD1_CMD__UART1_DTE_TX     0x00
+			MX8MP_IOMUXC_SD1_DATA0__UART1_DTE_CTS  0x00
+			MX8MP_IOMUXC_SD1_DATA1__UART1_DTE_RTS  0x00
+			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13    0x00 /* UART1_M2_WAKE_n */
+		>;
+	};
+
+	pinctrl_usdhc2: usdhc2grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_CLK__USDHC2_CLK      0x12
+			MX8MP_IOMUXC_SD2_CMD__USDHC2_CMD      0x10
+			MX8MP_IOMUXC_SD2_DATA0__USDHC2_DATA0  0x10
+			MX8MP_IOMUXC_SD2_DATA1__USDHC2_DATA1  0x10
+			MX8MP_IOMUXC_SD2_DATA2__USDHC2_DATA2  0x10
+			MX8MP_IOMUXC_SD2_DATA3__USDHC2_DATA3  0x10
+			MX8MP_IOMUXC_SD2_RESET_B__GPIO2_IO19  0x00 /* SD2_RESET */
+		>;
+	};
+
+	pinctrl_usdhc2_en: usdhc2grp_en {
+		fsl,pins = <
+			MX8MP_IOMUXC_NAND_ALE__GPIO3_IO00     0x00 /* SD2_M2_WAKE_n */
+		>;
+	};
+
+	pinctrl_gpio: pinctrlgpio {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO05__GPIO1_IO05          0x00 /* M2_E_PCIE_PEWAKE0_n */
+			MX8MP_IOMUXC_GPIO1_IO06__GPIO1_IO06          0x00 /* M2_E_DIS1_n */
+			MX8MP_IOMUXC_GPIO1_IO07__GPIO1_IO07          0x00 /* M2_E_DIS2_n */
+			MX8MP_IOMUXC_GPIO1_IO09__GPIO1_IO09          0x00 /* DIO_LED0_CTRL */
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12          0x00 /* M2_E_POW_EN_n */
+			MX8MP_IOMUXC_NAND_CE0_B__GPIO3_IO01          0x00 /* M2_E_ALERT_n */
+			MX8MP_IOMUXC_NAND_DATA00__GPIO3_IO06         0x00 /* M2_M_ALERT_n */
+			MX8MP_IOMUXC_SAI1_RXD2__GPIO4_IO04           0x00 /* M2_M_PLA_S3_n */
+			MX8MP_IOMUXC_SAI1_RXD3__GPIO4_IO05           0x00 /* M2_M_PWRDIS_n */
+			MX8MP_IOMUXC_SAI1_RXD4__GPIO4_IO06           0x00 /* M2_M_PLN */
+			MX8MP_IOMUXC_SAI1_RXD6__GPIO4_IO08           0x00 /* M2_M_PEDET_n */
+			MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01          0x00 /* MPI_ESTOP_IN_n */
+			MX8MP_IOMUXC_SAI1_RXC__GPIO4_IO01            0x00 /* PGD_NON_HLD */
+			MX8MP_IOMUXC_SAI1_RXD0__GPIO4_IO02           0x00 /* EN_ISO */
+			MX8MP_IOMUXC_SAI1_RXD5__GPIO4_IO07           0x00 /* 12VH_CAP_GD */
+			MX8MP_IOMUXC_SAI1_TXC__GPIO4_IO11            0x00 /* EN_NON_HLD */
+			MX8MP_IOMUXC_SAI5_RXD2__GPIO3_IO23           0x00 /* EXP_CON_HSI0a_n */
+			MX8MP_IOMUXC_SAI3_TXFS__GPIO4_IO31           0x00 /* IMX8MP_PFO_n */
+			MX8MP_IOMUXC_SAI5_RXD1__GPIO3_IO22           0x00 /* 12VH_ALERT_n */
+			MX8MP_IOMUXC_SAI3_MCLK__GPIO5_IO02           0x00 /* IMX8M_FAN_CTRLa */
+			MX8MP_IOMUXC_SAI3_RXC__GPIO4_IO29            0x00 /* HDMI_5V_OCP_n */
+			MX8MP_IOMUXC_SAI3_TXC__GPIO5_IO00            0x00 /* IMX8M_FAN_SPEEDa */
+			MX8MP_IOMUXC_SAI1_TXD0__GPIO4_IO12           0x00 /* HMI_BTN0 */
+			MX8MP_IOMUXC_HDMI_DDC_SCL__HDMIMIX_HDMI_SCL  0x400001E1
+			MX8MP_IOMUXC_HDMI_DDC_SDA__HDMIMIX_HDMI_SDA  0x400001E1
+			MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD      0x40000099
+			MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC      0x40000099
+		>;
+	};
+};
+
+/* HDMI Interface */
+&irqsteer_hdmi {
+	status = "okay";
+};
+
+&hdmi_blk_ctrl {
+	status = "okay";
+};
+
+&hdmi_pavi {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmiphy {
+	status = "okay";
+};
+
+/* LCDIF Interfaces */
+&lcdif1 {
+	status = "okay";
+};
+
+&lcdif2 {
+	status = "okay";
+};
+
+&lcdif3 {
+	status = "okay";
+};
+
+/* Enable GPUs and VPUs */
+&vpu_g1 {
+	status = "okay";
+};
+
+&vpu_g2 {
+	status = "okay";
+};
+
+&vpu_vc8000e {
+	status = "okay";
+};
+
+&vpu_v4l2 {
+	status = "okay";
+};
+
+&gpu_3d {
+	status = "okay";
+};
+
+&gpu_2d {
+	status = "okay";
+};
+
+&ml_vipsi {
+	status = "okay";
+};
+
+&mix_gpu_ml {
+	status = "okay";
+};

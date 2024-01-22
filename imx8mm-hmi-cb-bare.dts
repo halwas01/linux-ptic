@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2022 Prodrive Technologies
+
+/*
+ * This device tree describes the HMI control board witout any display or touchscreen connected.
+ */
+
+// Get the HMI control board base
+#include "imx8mm-hmi-cb-base.dtsi"
+
+/ {
+	model = "Prodrive Technologies HMI control board without display";
+	compatible = "pdt,imx8mm-ptic-base", "fsl,imx8mm";
+};

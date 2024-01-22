@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright (C) 2021 Prodrive Technologies
+
+/dts-v1/;
+
+// TODO: Most of this file can be the same for the ulz and ul building block. So we might need to split it up
+// at some point
+#include "imx6ulx-bb-v1.dtsi"
+
+/ {
+	/* This model description provides a working base for the i.MX6ULL building block. It delivers a working DTB
+	 * with all functionality of the building block itself and nothing more. It provides a starting point for
+	 * product development, as well as a working DTB for _all_ products using the building block. */
+	model = "Prodrive Technologies i.MX6ULL building block base";
+	compatible = "fsl,imx6ull-ptic-base", "fsl,imx6ull";
+};
+
+&imx6ulx_bb_nand_flash{
+	partition@0x00100000 {
+		label = "boot1";
+		reg = <0x00100000 0x00200000>;
+	};
+	partition@0x00300000 {
+		label = "boot2";
+		reg = <0x00300000 0x00200000>;
+	};
+};

@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2022 Prodrive Technologies
+
+/*
+ * This model description provides a working base for the i.MX8M Nano building block. It delivers a working DTB
+ * with all functionality of the building block itself and nothing more. It provides a starting point for
+ * product development, as well as a working DTB for _all_ products using the building block.
+ */
+
+/dts-v1/;
+
+// Get the building block
+#include "imx8m-v1/imx8mn-bb-v1.dtsi"
+
+/ {
+	model = "Prodrive Technologies i.MX8M Nano building block base";
+	compatible = "pdt,imx8mn-ptic-base" , "fsl,imx8mn";
+};

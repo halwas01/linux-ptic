@@ -1,0 +1,411 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright (C) 2021 Prodrive Technologies
+
+/dts-v1/;
+
+#include "ptic/imx6ulx-bb-v1.dtsi"
+
+/ {
+	/* Device tree supporting PCBs with release R00 and higher */
+	model = "Prodrive Technologies Whitelabel AC Charger - Sample 0.1 - 6001-2111-1600+";
+	compatible = "fsl,imx6ull-bb-evk", "fsl,imx6ull";
+
+	reg_wl18xx_vmmc:  regulator-wl18xx-vmcc {
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1807";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_wlan_en>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		gpio = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	reg_3v3_adc_ref: regulator-3v3-adc-ref {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-name = "3v3_adc_ref";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pinctrl_led>;
+		led0: led {
+			label = "alive-led";
+			gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pinctrl_cp_wakeup>;
+		power {
+			label = "CP wakeup";
+			gpios = <&gpio5 2 1>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+	};
+
+};
+
+// TODO: Change Clock rate in future
+&clks {
+	assigned-clocks = <&clks IMX6UL_CLK_PLL3_PFD2>;
+	assigned-clock-rates = <320000000>;
+};
+
+/*
+  Boot flash, last partition must be defined by user
+  Currently set to 128 MiB.
+*/
+&imx6ulx_bb_nand_flash {
+	partition@0x04100000 {
+		label = "user definable";
+		reg = <0x04100000 0x03F00000>;
+	};
+};
+
+/*
+  These following instances are available on the iMX6ULx BB.
+  It is not required to define these as they are disabled by default.
+*/
+&fec1 {
+    pinctrl-names = "default";
+    phy-mode = "rmii";
+	pinctrl-0 = <&pinctrl_enet1>;
+	phy-handle = <&ptic_base_ethphy0>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ptic_base_ethphy0: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+			clocks = <&clks IMX6UL_CLK_ENET_REF>;
+		};
+	};
+};
+
+/* RS485 */
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
+	status = "okay";
+};
+/* SMCU Comm */
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	status = "okay";
+};
+
+&usbotg2 {
+	pinctrl-names = "default";
+	dr_mode = "host";
+	status = "disabled";
+};
+
+/* WLAN */
+&usdhc1 {
+	pinctrl-names = "default";
+	vmmc-supply = <&reg_wl18xx_vmmc>;
+	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_wlan_irq>;
+	bus-width = <4>;
+	status = "okay";
+	non-removable;
+	cap-power-off-card;
+	keep-power-in-suspend;
+	sd-uhs-sdr25;
+	max-frequency = <25000000>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@0 {
+		compatible = "ti,wl1807","ti,wl1837";
+		reg = <2>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <4 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+/* Control Pilot */
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "okay";
+};
+
+/* Buzzer */
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
+	#pwm-cells = <2>;
+	status = "okay";
+};
+
+/* ADC */
+&adc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc1>;
+	vref-supply = <&reg_3v3_adc_ref>;
+	num-channels = <4>;
+	adc-ch-list = <0 1 2 3>;
+	status = "okay";
+};
+
+/* TPM */
+&ecspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2 &pinctrl_tpm_irq &pinctrl_tpm_stby>;
+	status = "okay";
+	cs-gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
+
+	tpm_tis@0 {
+		compatible = "st,st33htpm-spi", "tcg,tpm_tis-spi";
+		reg = <0>; /* Use CS0 */
+		spi-max-frequency = <20000000>; /* TPM up to 33M, iMX up to ~23M */
+		interrupt-parent = <&gpio5>;
+		interrupts = <3 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+/* PLC Communication */
+&ecspi3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3>;
+	status = "disabled";
+	cs-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
+};
+
+/* Energy Meter */
+&ecspi4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi4 &pinctrl_meter_irqs &pinctrl_meter_enable>;
+	status = "okay";
+	cs-gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
+
+	ade7854@0 {
+		compatible = "adi,ade7854";
+		reg = <0>;
+		spi-max-frequency = <2500000>;
+		/* Enable METER_PM1 */
+		enable-gpios =  <&gpio3 0 GPIO_ACTIVE_HIGH>; /* PM1 (high on iMX = low on meter */
+		reset-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
+		/* spi-cpol; shown in ad7190 chip example */
+		/* spi-cpha; shown in ad7190 chip example */
+		interrupt-parent = <&gpio5>;
+		interrupts = <4 GPIO_ACTIVE_LOW>, <7 GPIO_ACTIVE_LOW>;
+	};
+};
+
+/* LED */
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	pinctrl-1 = <&pinctrl_i2c4_gpio>;
+	scl-gpios = <&gpio2 10 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio2 11 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+};
+
+/* The Label IOMUXC can be used to overwrite GPIO's */
+&iomuxc {
+  pinctrl-names = "default";
+  pinctrl-0 = <&pinctrl_gpio>;
+
+  pinctrl_enet1: enet1grp {
+		fsl,pins = <
+			MX6UL_PAD_ENET1_TX_EN__ENET1_TX_EN		0x1b0b0
+			MX6UL_PAD_ENET1_TX_CLK__ENET1_REF_CLK1	0x4001b031
+			MX6UL_PAD_ENET1_TX_DATA0__ENET1_TDATA00	0x1b0b0
+			MX6UL_PAD_ENET1_TX_DATA1__ENET1_TDATA01	0x1b0b0
+			MX6UL_PAD_ENET1_RX_EN__ENET1_RX_EN		0x1b0b0
+			MX6UL_PAD_ENET1_RX_ER__ENET1_RX_ER		0x1b0b0
+			MX6UL_PAD_ENET1_RX_DATA0__ENET1_RDATA00	0x1b0b0
+			MX6UL_PAD_ENET1_RX_DATA1__ENET1_RDATA01	0x1b0b0
+            MX6UL_PAD_ENET2_RX_DATA0__ENET1_MDIO	0x1b0b0
+			MX6UL_PAD_ENET2_RX_DATA1__ENET1_MDC		0x1b0b0
+		>;
+	};
+
+  pinctrl_adc1: adc1grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO00__GPIO1_IO00	0x0 /* CP_ADC */
+			MX6UL_PAD_GPIO1_IO01__GPIO1_IO01	0x0 /* PP */
+			MX6UL_PAD_GPIO1_IO02__GPIO1_IO02	0x0 /* NTC1 */
+			MX6UL_PAD_GPIO1_IO03__GPIO1_IO03	0x0 /* NTC2 */
+		>;
+	};
+
+  pinctrl_ecspi2: ecspi2grp {
+		fsl,pins = <
+			MX6UL_PAD_CSI_DATA00__ECSPI2_SCLK	0x10b0
+			MX6UL_PAD_CSI_DATA02__ECSPI2_MOSI	0x10b0
+			MX6UL_PAD_CSI_DATA03__ECSPI2_MISO	0x10b0
+			/*MX6UL_PAD_LCD_HSYNC__ECSPI2_SS1	0x10b0 */
+			/*MX6UL_PAD_CSI_DATA01__GPIO4_IO22	0x10b0 */ /* GPIO CS for RFID */
+			MX6UL_PAD_LCD_HSYNC__GPIO3_IO02		0x10b0 /* GPIO CS for TPM */
+		>;
+	};
+
+	pinctrl_ecspi3: ecspi3grp {
+		fsl,pins = <
+			MX6UL_PAD_UART2_RX_DATA__ECSPI3_SCLK		0x10b0
+			MX6UL_PAD_UART2_TX_DATA__GPIO1_IO20		0x10b0 /* CS# */
+			MX6UL_PAD_UART2_CTS_B__ECSPI3_MOSI		0x10b0
+			MX6UL_PAD_UART2_RTS_B__ECSPI3_MISO		0x10b0
+		>;
+	};
+
+	pinctrl_ecspi4: ecspi4grp {
+		fsl,pins = <
+			MX6UL_PAD_ENET2_TX_DATA1__ECSPI4_SCLK		0x10b0
+			MX6UL_PAD_ENET2_RX_ER__GPIO2_IO15		0x10b0 /* CS# */
+			MX6UL_PAD_ENET2_TX_EN__ECSPI4_MOSI		0x10b0
+			MX6UL_PAD_ENET2_TX_CLK__ECSPI4_MISO		0x10b0
+		>;
+	};
+
+	pinctrl_i2c4: i2c4grp {
+			fsl,pins = <
+			MX6UL_PAD_ENET2_TX_DATA0__I2C4_SDA	0x4001b8b0
+			MX6UL_PAD_ENET2_RX_EN__I2C4_SCL		0x4001b8b0
+		>;
+	};
+
+	pinctrl_i2c4_gpio: i2c4gpiogrp {
+			fsl,pins = <
+			MX6UL_PAD_ENET2_TX_DATA0__GPIO2_IO11	0x1b0b0
+			MX6UL_PAD_ENET2_RX_EN__GPIO2_IO10		0x1b8b0
+		>;
+	};
+
+	pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX6UL_PAD_UART4_TX_DATA__UART4_DCE_TX	0x1b0b1
+			MX6UL_PAD_UART4_RX_DATA__UART4_DCE_RX	0x1b0b1
+		>;
+	};
+
+	pinctrl_uart5: uart5grp {
+		fsl,pins = <
+			MX6UL_PAD_UART5_TX_DATA__UART5_DCE_TX	0x1b0b1
+			MX6UL_PAD_UART5_RX_DATA__UART5_DCE_RX	0x1b0b1
+		>;
+	};
+
+	pinctrl_usdhc1: usdhc1grp {
+		fsl,pins = <
+			MX6UL_PAD_SD1_CLK__USDHC1_CLK		0x10059
+			MX6UL_PAD_SD1_CMD__USDHC1_CMD		0x17059
+			MX6UL_PAD_SD1_DATA0__USDHC1_DATA0	0x17059
+			MX6UL_PAD_SD1_DATA1__USDHC1_DATA1	0x17059
+			MX6UL_PAD_SD1_DATA2__USDHC1_DATA2	0x17059
+			MX6UL_PAD_SD1_DATA3__USDHC1_DATA3	0x17059
+		>;
+	};
+
+	pinctrl_pwm1: pmw1grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO08__PWM1_OUT		0xb079
+		>;
+	};
+
+	pinctrl_pwm2: pmw2grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO09__PWM2_OUT		0x3018
+		>;
+	};
+
+	pinctrl_led: ledgrp {
+		fsl,pins = <
+			MX6UL_PAD_NAND_DQS__GPIO4_IO16			0x10b0 /* PCB LED */
+		>;
+	};
+
+	pinctrl_meter_enable: meterenablegrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_CLK__GPIO3_IO00			0xd0b0 /* METER_PM1 */
+		>;
+	};
+
+	pinctrl_meter_reset: meterrstgrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_ENABLE__GPIO3_IO01                0x10b0 /* METER_RESET */
+		>;
+	};
+
+	pinctrl_wlan_irq: wlanirqgrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_RESET__GPIO3_IO04			0x10b0 /* WLAN_IRQ */
+		>;
+	};
+
+	pinctrl_tpm_stby: tpmstbygrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_VSYNC__GPIO3_IO03			0xb030 /* TPM_STBY */
+		>;
+	};
+
+	pinctrl_wlan_en: wlanengrp {
+		fsl,pins = <
+			MX6UL_PAD_LCD_DATA05__GPIO3_IO10		0x1030 /* WLAN ENABLE */
+		>;
+	};
+
+	pinctrl_gpio: pinctrlgpio {
+		fsl,pins = <
+			MX6UL_PAD_LCD_DATA02__GPIO3_IO07		0x10b0 /* GM_OK_n */
+			MX6UL_PAD_UART3_TX_DATA__GPIO1_IO24		0x10b0 /* SOCKET_ALLOW */
+			MX6UL_PAD_UART3_RX_DATA__GPIO1_IO25		0x10b0 /* SOCKET_OPEN */
+			MX6UL_PAD_UART3_RTS_B__GPIO1_IO27		0x10b0 /* SOCKET_LOCK */
+			MX6UL_PAD_UART3_CTS_B__GPIO1_IO26		0x10b0 /* SOCKET_FB */
+			MX6UL_PAD_UART1_RTS_B__GPIO1_IO19		0x10b0 /* SMCU_RST */
+			MX6UL_PAD_NAND_CE1_B__GPIO4_IO14		0x10b0 /* MAINS_LOSS */
+		>;
+
+	};
+};
+
+&iomuxc_snvs {
+
+	/* Note on iMX6ULL all SNVS tamper pins are MX6ULL_PAD instead of MX6UL_PAD */
+	pinctrl_meter_irqs: meterirqsgrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER7__GPIO5_IO07		0x10b0 /* METER_IRQ1_n */
+			MX6ULL_PAD_SNVS_TAMPER4__GPIO5_IO04		0x10b0 /* METER_IRQ0_n */
+		>;
+	};
+
+	pinctrl_cp_wakeup: cpwakeupgrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER2__GPIO5_IO02		0x10b0 /* CP_WAKEUP */
+		>;
+	};
+
+	pinctrl_smcu_irq: smcuirqgrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER8__GPIO5_IO08		0x10b0 /* SMCU_IRQ */
+		>;
+	};
+
+	pinctrl_tpm_irq: tpmirqgrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER3__GPIO5_IO03		0x10b0 /* TPM_IRQ */
+		>;
+	};
+
+};

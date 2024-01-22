@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2023 Prodrive Technologies
+
+/*
+ * This product describes a combination of the following PTIC building blocks:
+ * - i.MX8M Plus controller building block
+ * - PCIe Gen 2 switch
+ *
+ * This product is used to perform qualification on the PCIe switch building block software.
+ */
+
+/dts-v1/;
+
+// Get the controller building block
+#include "imx8mplus-v1/imx8mp-bb-v1.dtsi"
+
+/ {
+	model = "Prodrive Technologies i.MX8M Plus PCIe Switch qualification configuration";
+	compatible = "pdt,imx8mp-ptic-base" , "fsl,imx8mp";
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio4 3 GPIO_ACTIVE_HIGH>;
+	ext_osc = <0>;
+	clock-names = "pcie", "pcie_aux", "pcie_phy", "pcie_bus";
+	clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
+		 <&clk IMX8MP_CLK_PCIE_AUX>,
+		 <&clk IMX8MP_CLK_HSIO_AXI>,
+		 <&clk IMX8MP_CLK_PCIE_ROOT>;
+	assigned-clocks = <&clk IMX8MP_CLK_HSIO_AXI>,
+			  <&clk IMX8MP_CLK_PCIE_AUX>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_500M>,
+				 <&clk IMX8MP_SYS_PLL2_50M>;
+	status = "okay";
+};
+
+// i.MX8M Plus also provides device tree instances for physical interfaces
+&pcie_phy {
+	ext_osc = <0>;
+	status = "okay";
+};
+
+&iomuxc {
+  /* TODO: Verify drive strengths by HW engineers */
+	pinctrl_pcie: pciegrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO14__GPIO1_IO14  0x16 /* PCIE_CLKREQ_n */
+			MX8MP_IOMUXC_SAI1_RXD1__GPIO4_IO03   0x16 /* PCIE_SW_RST_n */
+			MX8MP_IOMUXC_SAI5_RXD3__GPIO3_IO24   0x16 /* PCIE_SW_1V_PG */
+		>;
+	};
+};

@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2022 Prodrive Technologies
+
+/*
+ * This device tree describes the HMI control board, including the i.MX8M Mini building block. The board description
+ * includes the imx8mm-bb-v1 building block and is derived from the imx8mm-ptic-base.dts file.
+ */
+
+/dts-v1/;
+
+// Get the building block
+#include "../imx8m-v1/imx8mm-bb-v1.dtsi"
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dbg_led>;
+
+		dbg_led {
+			label = "dbg_led";
+			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+};
+
+&imx8m_bb_fec1 {
+	phy-handle = <&ethphy0>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+		};
+	};
+};
+
+&imx8m_bb_usbotg1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_dbg_led: dbgledgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_GPIO1_IO00_GPIO1_IO0  0x19
+		>;
+	};
+
+	pincrtl_mipi: pinctrlmipi {
+		fsl,pins = <
+			MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14  0x16 /* P07_LVDS_EN */
+			MX8MM_IOMUXC_GPIO1_IO15_GPIO1_IO15  0x16 /* P07_LVDS_IRQ */
+		>;
+	};
+
+	pinctrl_gpio: pinctrlgpio {
+		fsl,pins = <
+			MX8MM_IOMUXC_SAI2_MCLK_GPIO4_IO27	0x16 /* TOUCH_IO1 */
+			MX8MM_IOMUXC_SAI2_RXC_GPIO4_IO22	0x16 /* TOUCH_IO2 */
+			MX8MM_IOMUXC_SAI2_RXD0_GPIO4_IO23	0x16 /* TOUCH_IO3 */
+			MX8MM_IOMUXC_SAI2_RXFS_GPIO4_IO21   0x16 /* TOUCH_IO4 */
+			MX8MM_IOMUXC_SAI2_TXC_GPIO4_IO25    0x16 /* TOUCH_IO5 */
+			MX8MM_IOMUXC_SAI2_TXD0_GPIO4_IO26   0x16 /* TOUCH_IO6 */
+			MX8MM_IOMUXC_SAI2_TXFS_GPIO4_IO24	0x16 /* TOUCH_IO7 */
+			MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2	0x16 /* TOUCH_IO8 */
+			MX8MM_IOMUXC_SAI3_RXC_GPIO4_IO29	0x16 /* TOUCH_IO9 */
+			MX8MM_IOMUXC_SAI3_RXD_GPIO4_IO30	0x16 /* TOUCH_IO10 */
+			MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6	0x16 /* DISPLAY_IO1 */
+			MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7	0x16 /* DISPLAY_IO2 */
+			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8	0x16 /* DISPLAY_IO3 */
+			MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9	0x16 /* DISPLAY_IO4 */
+			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x16 /* DISPLAY_IO5 */
+			MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11	0x16 /* DISPLAY_IO6 */
+			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12	0x16 /* DISPLAY_IO7 */
+		>;
+	};
+};
+
+/* Enable VPU/GPU interfaces */
+&vpu_g1 {
+	status = "okay";
+};
+
+&vpu_g2 {
+	status = "okay";
+};
+
+&vpu_h1 {
+	status = "okay";
+};
+
+&vpu_v4l2 {
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
