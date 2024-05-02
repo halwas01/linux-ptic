@@ -1,0 +1,289 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright (C) 2022 Prodrive Technologies
+
+/*
+ * Building block definitions which are applicable to all variants of the i.MX8MPlus building blocks.
+ */
+
+#include <dt-bindings/usb/pd.h>
+#include "../../../freescale/imx8mp.dtsi"
+
+/ {
+	chosen {
+		stdout-path = &uart4;
+	};
+
+	aliases {
+		rtc1 = &snvs_rtc;
+		/*
+		 * When U-Boot environment variable 'ethaddr' is set, the MAC address from the i.MX eFuses gets overwritten.
+		 * 'ethaddr' is a magic environment variable in U-Boot and related to the ethernet alias described in the device tree.
+		 * By deleting the ethernet alias property, the MAC address cannot be spoofed by setting the 'ethaddr' variable.
+		 * Allow setting MAC address values by U-Boot by adding the ethernet alias to the product device tree.
+		 */
+		/delete-property/ ethernet0;
+		/delete-property/ ethernet1;
+	};
+};
+
+&A53_0 {
+	cpu-supply = <&arm_core_voltage_regulator>;
+};
+
+&snvs_pwrkey {
+	status = "okay";
+};
+
+/*
+	The following definitions list the parts and interfaces which are placed on the building block itself.
+	These parts and interfaces are enabled by default, as they are always available and used.
+*/
+imx8mp_bb_uart_debug: &uart4 { /* Debug UART */
+	pinctrl-names = "default";
+	pinctrl-0 = <&imx8mp_pinctrl_uart4>;
+	status = "okay";
+};
+
+imx8mp_bb_watchdog: &wdog1 {
+	pinctrl-names = "default";
+	status = "okay";
+	timeout-sec = <120>;
+};
+
+/* boot flash */
+imx8mp_bb_ecspi1: &ecspi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&imx8mp_pinctrl_ecspi1>;
+	num-cs = <2>;
+	cs-gpios =<0
+		&gpio5 9 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	imx8mp_bb_spi_flash: flash@1 {
+		reg = <1>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <12500000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0x00000000 {
+			label = "recovery_boot";
+			reg = <0x00000000 0x00400000>;
+		};
+		partition@0x00400000 {
+			label = "boot_env";
+			reg = <0x00400000 0x00020000>;
+		};
+		partition@0x00420000 {
+			label = "factory_data";
+			reg = <0x00420000 0x00020000>;
+			read-only;
+		};
+		partition@0x00440000 {
+			label = "customer_data";
+			reg = <0x00440000 0x003C0000>;
+		};
+	};
+};
+
+/* eMMC */
+imx8mp_bb_emmc: &usdhc3 {
+	pinctrl-names = "default";
+	assigned-clocks = <&clk IMX8MP_CLK_USDHC3>;
+	pinctrl-0 = <&imx8mp_pinctrl_usdhc3>;
+	bus-width = <8>;
+	non-removable;
+	status = "okay";
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	max-frequency = <200000000>;
+};
+
+imx8mp_bb_i2c1: &i2c1 {
+	clock-frequency = <350000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&imx8mp_pinctrl_i2c1>;
+	pinctrl-1 = <&imx8mp_pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio5 14 GPIO_ACTIVE_HIGH>;
+	sda-gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	imx8mp_bb_pmic: pca9450@25 {
+		reg = <0x25>;
+		compatible = "nxp,pca9450c";
+		/* PMIC PCA9450 PMIC_nINT GPIO1_IO3 */
+		pinctrl-0 = <&imx8mp_pinctrl_pmic>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+
+		regulators {
+			imx8mp_bb_pmic_buck1: buck1 {
+				regulator-name = "buck1";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <2187500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <3125>;
+				nxp,dvs-run-voltage = <850000>;
+				nxp,dvs-standby-voltage = <800000>;
+			};
+
+			arm_core_voltage_regulator: buck2 {
+				regulator-compatible = "buck2";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <2187500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <3125>;
+			};
+
+			imx8mp_bb_pmic_buck4: buck4 {
+				regulator-compatible = "buck4";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			imx8mp_bb_pmic_buck5: buck5 {
+				regulator-compatible = "buck5";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			imx8mp_bb_pmic_buck6: buck6 {
+				regulator-compatible = "buck6";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <3400000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			imx8mp_bb_pmic_ldo1: ldo1 {
+				regulator-compatible = "ldo1";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			imx8mp_bb_pmic_ldo2: ldo2 {
+				regulator-compatible = "ldo2";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1150000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			imx8mp_bb_pmic_ldo3: ldo3 {
+				regulator-compatible = "ldo3";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			imx8mp_bb_pmic_ldo4: ldo4 {
+				regulator-compatible = "ldo4";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			imx8mp_bb_pmic_ldo5: ldo5 {
+				regulator-compatible = "ldo5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+};
+
+/* USB is enabled by default for production and debugging purposes. */
+/* USB is always available on the building block. */
+&usb3_0 {
+	status = "okay";
+};
+
+&usb3_phy0 {
+	status = "okay";
+};
+
+&usb_dwc3_0 {
+	adp-disable;
+	dr_mode = "host";
+	hnp-disable;
+	srp-disable;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+
+	/*
+	 * Building block interfaces
+	 */
+	imx8mp_pinctrl_ecspi1: ecspi1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_ECSPI1_MISO__ECSPI1_MISO	0x00
+			MX8MP_IOMUXC_ECSPI1_MOSI__ECSPI1_MOSI	0x00
+			MX8MP_IOMUXC_ECSPI1_SCLK__ECSPI1_SCLK	0x00
+			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09		0x00
+		>;
+	};
+
+	/*
+	 * Bit-30 corresponds with the I2C1 SION-bit in the Pad Mux Register (bit-4).
+	 * This bit must be set to force the input path of I2C pads.
+	 */
+	imx8mp_pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C1_SCL__I2C1_SCL	0x40000000
+			MX8MP_IOMUXC_I2C1_SDA__I2C1_SDA	0x40000000
+		>;
+	};
+
+	/* i.MX I2C peripheral is unable to perform bus recovery. For recovery the driver can switch the I2C pins to GPIO mode
+		for bus recovery. These are added as additional IOMUX settings. */
+	imx8mp_pinctrl_i2c1_gpio: i2c1gpiogrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C1_SCL__GPIO5_IO14	0x00
+			MX8MP_IOMUXC_I2C1_SDA__GPIO5_IO15	0x00
+		>;
+	};
+
+	imx8mp_pinctrl_uart4: uart4grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_UART4_RXD__UART4_DCE_RX		0x00
+			MX8MP_IOMUXC_UART4_TXD__UART4_DCE_TX		0x00
+		>;
+	};
+
+	imx8mp_pinctrl_usdhc3: usdhc3grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_NAND_WE_B__USDHC3_CLK				0x16
+			MX8MP_IOMUXC_NAND_WP_B__USDHC3_CMD				0x10
+			MX8MP_IOMUXC_NAND_READY_B__USDHC3_RESET_B	0x10
+			MX8MP_IOMUXC_NAND_CE1_B__USDHC3_STROBE		0x10
+			MX8MP_IOMUXC_NAND_DATA04__USDHC3_DATA0		0x10
+			MX8MP_IOMUXC_NAND_DATA05__USDHC3_DATA1		0x10
+			MX8MP_IOMUXC_NAND_DATA06__USDHC3_DATA2		0x10
+			MX8MP_IOMUXC_NAND_DATA07__USDHC3_DATA3		0x10
+			MX8MP_IOMUXC_NAND_RE_B__USDHC3_DATA4			0x10
+			MX8MP_IOMUXC_NAND_CE2_B__USDHC3_DATA5			0x10
+			MX8MP_IOMUXC_NAND_CE3_B__USDHC3_DATA6			0x10
+			MX8MP_IOMUXC_NAND_CLE__USDHC3_DATA7				0x10
+		>;
+	};
+
+	imx8mp_pinctrl_pmic: pmicirq {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO03__GPIO1_IO03		0x00
+		>;
+	};
+};

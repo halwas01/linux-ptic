@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2023 Prodrive Technologies
+
+/*
+ * This device tree description describes the 4-port gigabit managed Ethernet swithch building block.
+ * Within DTS configuration, the switch must be defined within an MDIO Interface definition. However, the MDIO
+ * definition is outside the scope of the building block. Therefore this dtsi relies on an existing MDIO definition
+ * being already defined and named "manswitch_1gbe_4p_bb_mdio".
+ *
+ * The parent DTS including this, should look something like:
+	/ {
+		<unrelated board definitions>
+
+		manswitch_1gbe_4p_bb_mdio: mdio_interface {
+			<board specific MDIO settings>
+		};
+	};
+
+	#include "manswitch-1gbe-4p-v1/manswitch-1gbe-4p-bb-v1.dtsi"
+ *
+ * After including the building block the parent Ethernet port uplink must be set, as this port is unknown to the
+ * building block. This is done by linking an existing Ethernet port node to manswitch_1gbe_4p_bb_uplink, like:
+	&manswitch_1gbe_4p_bb_uplink {
+		ethernet = <&ethernet_port_reference>;
+	};
+ *
+ * After this configuration, several options are available:
+ * - A switch reset GPIO, by passing a gpio node to "reset-gpios"
+ * - port label and status by referencing and overriding fields in the manswitch_1gbe_4p_bb_pX nodes
+ * - TODO: Port LED modes
+ */
+&manswitch_1gbe_4p_bb_mdio {
+	manswitch_1gbe_4p_bb_switch: ethernet-switch@1e {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "brcm,bcm53134";
+		/* reset-gpios = <&gpioX XX GPIO_ACTIVE_LOW>; --> must be defined by the board. */
+		reg = <30>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/*
+			 * The switch output ports are disabled by default. The integrator must enable the required ports, as not
+			 * all products route all ports outside
+			 */
+			manswitch_1gbe_4p_bb_p0: port@0 {
+				reg = <0>;
+				label = "swp0";
+				status = "disabled";
+			};
+
+			manswitch_1gbe_4p_bb_p1: port@1 {
+				reg = <1>;
+				label = "swp1";
+				status = "disabled";
+			};
+
+			manswitch_1gbe_4p_bb_p2: port@2 {
+				reg = <2>;
+				label = "swp2";
+				status = "disabled";
+			};
+
+			manswitch_1gbe_4p_bb_p3: port@3 {
+				reg = <3>;
+				label = "swp3";
+				status = "disabled";
+			};
+
+			manswitch_1gbe_4p_bb_uplink: port@8 {
+				reg = <8>;
+				phy-mode = "rgmii";
+				/* ethernet = <<node>>; --> must be defined by the board. */
+				label = "cpu";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};

@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2023 Prodrive Technologies
+
+/*
+ * This product describes a combination of the following PTIC building blocks:
+ * - i.MX8M Mini controller
+ * - Managed 4-ports 1Gbps Ethernet switch
+ *
+ * This product is used to perform qualification on the Managed Ethernet switch building block software.
+ */
+
+/dts-v1/;
+
+// Get the controller building block
+#include "imx8m-v1/imx8mm-bb-v1.dtsi"
+
+/ {
+	model = "Prodrive Technologies i.MX8M Mini Managed Ethernet switch qualification configuration";
+	compatible = "pdt,imx8mm-ptic-base" , "fsl,imx8mm";
+
+	/*
+	 * The i.MX8M Mini FEC MDIO is not able to control managed Ethernet switches, as it is designed to do PHY's only.
+	 * It doesn't understand a fixed link _with_ MDIO control configuration. Therefore we define a MDIO bitbang
+	 * interface using the MDIO pins in GPIO mode. This is much slower and the jitter is dramatic. However, MDIO is a
+	 * synchronous interface, and it is only used during link training and VLAN setup. Therefore it has minor effect on
+	 * performance.
+	 */
+	manswitch_1gbe_4p_bb_mdio: mdio {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_bb_mdio>;
+		compatible = "virtual,mdio-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpios = <&gpio1 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>,
+			<&gpio1 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	};
+};
+
+/* FEC is used as the uplink to the Ethernet switch building block. It's set up as a fixed FD gigabit link */
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet>;
+	phy-mode = "rgmii";
+	status = "okay";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+/*
+ * Include the Ethernet switch block after the definition of the MDIO interface, as the building block needs it to
+ * create the switch on.
+ */
+#include "manswitch-1gbe-4p-v1/manswitch-1gbe-4p-bb-v1.dtsi"
+
+&manswitch_1gbe_4p_bb_switch {
+	reset-gpios = <&gpio4 29 GPIO_ACTIVE_LOW>;
+};
+
+/* Set up the managed switch external interfaces. */
+&manswitch_1gbe_4p_bb_uplink {
+	ethernet = <&fec1>;
+};
+
+/* Current hardware (6309-2200-7701) only has port 0-2 routed to an external connector */
+&manswitch_1gbe_4p_bb_p0 {
+	status = "okay";
+};
+
+&manswitch_1gbe_4p_bb_p1 {
+	status = "okay";
+};
+
+&manswitch_1gbe_4p_bb_p2 {
+	status = "okay";
+};
+
+/* force USB as host to enable USB-ETH support */
+&imx8m_bb_usbotg1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_bb_mdio: bbmdiogrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_ENET_MDC_GPIO1_IO16  0x00000000
+			MX8MM_IOMUXC_ENET_MDIO_GPIO1_IO17 0x00000000
+			MX8MM_IOMUXC_SAI3_RXC_GPIO4_IO29  0x00000000 /* Switch reset */
+		>;
+	};
+
+	pinctrl_enet: enetgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_ENET_RD0_ENET1_RGMII_RD0       0x00000091
+			MX8MM_IOMUXC_ENET_RD1_ENET1_RGMII_RD1       0x00000091
+			MX8MM_IOMUXC_ENET_RD2_ENET1_RGMII_RD2       0x00000091
+			MX8MM_IOMUXC_ENET_RD3_ENET1_RGMII_RD3       0x00000091
+			MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL 0x00000091
+			MX8MM_IOMUXC_ENET_RXC_ENET1_RGMII_RXC       0x00000091
+			MX8MM_IOMUXC_ENET_TD0_ENET1_RGMII_TD0       0x00000010
+			MX8MM_IOMUXC_ENET_TD1_ENET1_RGMII_TD1       0x00000010
+			MX8MM_IOMUXC_ENET_TD2_ENET1_RGMII_TD2       0x00000010
+			MX8MM_IOMUXC_ENET_TD3_ENET1_RGMII_TD3       0x00000010
+			MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL 0x00001810
+			MX8MM_IOMUXC_ENET_TXC_ENET1_RGMII_TXC       0x00000010
+		>;
+	};
+};

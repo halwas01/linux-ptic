@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+//
+// Copyright 2022 Prodrive Technologies
+
+/*
+ * This device tree describes the HMI control board, with the Yeebo YB-TG800480C71C display connected. This is an LVDS
+ * display with integrated touchscreen.
+ */
+
+// Get the HMI control board base
+#include "imx8mm-hmi-cb-base.dtsi"
+
+/ {
+	model = "Prodrive Technologies HMI control board with Yeebo YB-TG800480C71C";
+	compatible = "pdt,imx8mm-ptic-base", "fsl,imx8mm";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&mipi_dsi {
+	status = "okay";
+	fsl,clock-drop-level = <2>;
+
+	port@1 {
+		mipi_dsi_lvds_out: endpoint {
+			remote-endpoint = <&dsi_lvds_bridge_in>;
+			attach-bridge;
+		};
+	};
+};
+
+&imx8m_bb_i2c2 {
+	status = "okay";
+
+	dsi_lvds_bridge: sn65dsi83@2c {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "ti,sn65dsi83";
+		reg = <0x2c>;
+		enable-gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;  // DISPLAY_IO9
+		interrupt-parent = <&gpio1>;
+		interrupts = <15 IRQ_TYPE_LEVEL_HIGH>; // DISPLAY_IO10
+		pinctrl-names = "default";
+		pinctrl-0 = <&pincrtl_mipi>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			dsi_lvds_bridge_in: endpoint {
+				remote-endpoint = <&mipi_dsi_lvds_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			dsi_lvds_bridge_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+/ {
+	/*
+	  bist: 6
+	  reset: 7
+	  stbyb: 8
+	  dimo: 9 (backlight)
+	  selb: 10
+	  l/r: 11
+	  u/d: 12
+	*/
+	reg_lcd_bist: regulator-lcd-bist {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "reg_lcd_bist";
+		gpio = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <0>;
+		enable-active-low;
+	};
+
+	reg_lcd_ud: regulator-lcd-ud {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "reg_lcd_ud";
+		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <0>;
+		enable-active-low;
+		vin-supply = <&reg_lcd_bist>;
+	};
+
+	reg_lcd_selb: regulator-lcd-selb {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "reg_lcd_selb";
+		gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <0>;
+		enable-active-low;
+		vin-supply = <&reg_lcd_ud>;
+	};
+
+	lvds {
+		compatible = "panel-lvds";
+		power-supply = <&reg_lcd_selb>;
+		width-mm = <108>;
+		height-mm = <123>;
+		//backlight = <&backlight_lvds>;
+		data-mapping = "vesa-24";
+
+		panel-timing {
+			clock-frequency = <51200000>;
+			hactive = <1024>;
+			vactive = <600>;
+			hsync-len = <70>;
+			hfront-porch = <160>;
+			hback-porch = <160>;
+			vfront-porch = <12>;
+			vback-porch = <23>;
+			vsync-len = <10>;
+			hsync-active = <1>;
+			vsync-active = <1>;
+			de-active = <1>;
+			pixelclk-active = <1>;
+		};
+
+		port@0 {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi_lvds_bridge_out>;
+			};
+		};
+	};
+};
+
+&imx8m_bb_i2c3 {
+	status = "okay";
+
+	touchscreen@26 {
+		compatible = "ilitek,ili2117";
+		reg = <0x26>;
+		// touchscreen-inverted-x = <1>;
+		// touchscreen-swapped-x-y = <1>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <22 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-0 = <&pinctrl_gpio>;
+		gpios = <&gpio4 21 GPIO_ACTIVE_LOW>;
+		status = "okay"; // Disable for now.
+        };
+};
